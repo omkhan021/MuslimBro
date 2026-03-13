@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Muslim Bro</string>
+    <string name="widget_small_description">Prayer Times (small)</string>
+    <string name="widget_medium_description">Prayer Times (medium)</string>
+</resources>
