@@ -1,6 +1,7 @@
 package com.muslimbro.core.data.database
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -30,48 +31,82 @@ object DatabaseModule {
             .build()
 
     /**
-     * Seeds Quran data from the asset DB into the Room-created DB.
-     * Room creates the DB with the correct schema first (via onCreate), then we ATTACH
-     * the asset file and bulk-copy the data. This avoids schema hash mismatches that
-     * occur when using createFromAsset with a non-Room-generated asset file.
+     * Seeds Quran data from the asset file into the freshly-created Room DB.
+     * Uses direct SQLiteDatabase access + compiled statements inside a transaction
+     * to avoid ATTACH DATABASE issues with Room's connection pooling.
      */
     private fun seedQuranData(context: Context, db: SupportSQLiteDatabase) {
         val tempFile = File(context.cacheDir, "quran_seed_tmp.db")
+        var sourceDb: SQLiteDatabase? = null
         try {
             context.assets.open("quran_data.db").use { input ->
                 tempFile.outputStream().use { output -> input.copyTo(output) }
             }
-            db.execSQL("ATTACH DATABASE '${tempFile.absolutePath}' AS quran_source")
-            db.execSQL(
-                "INSERT OR IGNORE INTO surahs " +
-                    "(number, name, nameArabic, nameTranslation, revelationType, versesCount) " +
-                    "SELECT number, name, nameArabic, nameTranslation, revelationType, versesCount " +
-                    "FROM quran_source.surahs"
+            sourceDb = SQLiteDatabase.openDatabase(
+                tempFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY
             )
-            db.execSQL(
-                "INSERT OR IGNORE INTO verses " +
-                    "(id, surahNumber, verseNumber, textUthmani, textSimple, juz, hizb, sajda) " +
-                    "SELECT id, surahNumber, verseNumber, textUthmani, textSimple, juz, hizb, sajda " +
-                    "FROM quran_source.verses"
-            )
-            // Rebuild FTS index from the now-populated verses content table
-            db.execSQL("INSERT INTO verses_fts(verses_fts) VALUES('rebuild')")
+            db.beginTransaction()
             try {
-                db.execSQL(
-                    "INSERT OR IGNORE INTO words " +
-                        "(id, verseId, position, text, audioUrl, audioOffset) " +
-                        "SELECT id, verseId, position, text, audioUrl, audioOffset " +
-                        "FROM quran_source.words"
-                )
-            } catch (_: Exception) {
-                // words table may not exist in asset — non-fatal
+                seedSurahs(sourceDb, db)
+                seedVerses(sourceDb, db)
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
             }
-            db.execSQL("DETACH DATABASE quran_source")
-        } catch (e: Exception) {
+            // Rebuild FTS index from the populated verses table
+            db.execSQL("INSERT INTO verses_fts(verses_fts) VALUES('rebuild')")
+        } catch (_: Exception) {
             // Seed failure is non-fatal — Quran screen will show "no data" error
         } finally {
+            sourceDb?.close()
             tempFile.delete()
         }
+    }
+
+    private fun seedSurahs(sourceDb: SQLiteDatabase, db: SupportSQLiteDatabase) {
+        val cursor = sourceDb.rawQuery(
+            "SELECT number, name, nameArabic, nameTranslation, revelationType, versesCount FROM surahs ORDER BY number",
+            null
+        )
+        val stmt = db.compileStatement(
+            "INSERT OR IGNORE INTO surahs (number, name, nameArabic, nameTranslation, revelationType, versesCount) VALUES (?, ?, ?, ?, ?, ?)"
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                stmt.bindLong(1, it.getLong(0))
+                stmt.bindString(2, it.getString(1))
+                stmt.bindString(3, it.getString(2))
+                stmt.bindString(4, it.getString(3))
+                stmt.bindString(5, it.getString(4))
+                stmt.bindLong(6, it.getLong(5))
+                stmt.executeInsert()
+            }
+        }
+        stmt.close()
+    }
+
+    private fun seedVerses(sourceDb: SQLiteDatabase, db: SupportSQLiteDatabase) {
+        val cursor = sourceDb.rawQuery(
+            "SELECT id, surahNumber, verseNumber, textUthmani, textSimple, juz, hizb, sajda FROM verses ORDER BY id",
+            null
+        )
+        val stmt = db.compileStatement(
+            "INSERT OR IGNORE INTO verses (id, surahNumber, verseNumber, textUthmani, textSimple, juz, hizb, sajda) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                stmt.bindLong(1, it.getLong(0))
+                stmt.bindLong(2, it.getLong(1))
+                stmt.bindLong(3, it.getLong(2))
+                stmt.bindString(4, it.getString(3))
+                stmt.bindString(5, it.getString(4))
+                stmt.bindLong(6, it.getLong(5))
+                stmt.bindLong(7, it.getLong(6))
+                stmt.bindLong(8, it.getLong(7))
+                stmt.executeInsert()
+            }
+        }
+        stmt.close()
     }
 
     @Provides

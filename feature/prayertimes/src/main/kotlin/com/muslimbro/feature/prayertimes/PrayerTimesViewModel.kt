@@ -7,6 +7,7 @@ import com.muslimbro.core.common.toHijriDate
 import com.muslimbro.core.domain.model.NextPrayer
 import com.muslimbro.core.domain.model.Prayer
 import com.muslimbro.core.domain.model.PrayerTimes
+import com.muslimbro.core.domain.repository.LocationRepository
 import com.muslimbro.core.domain.usecase.GetPrayerTimesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -27,6 +28,7 @@ data class PrayerTimesUiState(
     val prayerTimes: PrayerTimes? = null,
     val nextPrayer: NextPrayer? = null,
     val hijriDate: com.muslimbro.core.common.HijriDate? = null,
+    val locationName: String? = null,
     val error: String? = null,
     val notificationsEnabled: Map<Prayer, Boolean> = Prayer.entries
         .filter { it.isAlarmable }
@@ -35,7 +37,8 @@ data class PrayerTimesUiState(
 
 @HiltViewModel
 class PrayerTimesViewModel @Inject constructor(
-    private val getPrayerTimesUseCase: GetPrayerTimesUseCase
+    private val getPrayerTimesUseCase: GetPrayerTimesUseCase,
+    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PrayerTimesUiState())
@@ -43,6 +46,19 @@ class PrayerTimesViewModel @Inject constructor(
 
     private var countdownJob: Job? = null
     private var loadJob: Job? = null
+
+    init {
+        locationRepository.getCurrentLocation()
+            .onEach { result ->
+                if (result is AppResult.Success) {
+                    val loc = result.data
+                    val name = loc.cityName
+                        ?: "%.4f°, %.4f°".format(loc.latitude, loc.longitude)
+                    _uiState.value = _uiState.value.copy(locationName = name)
+                }
+            }
+            .launchIn(viewModelScope)
+    }
 
     fun loadPrayerTimes(date: LocalDate = LocalDate.now()) {
         loadJob?.cancel()

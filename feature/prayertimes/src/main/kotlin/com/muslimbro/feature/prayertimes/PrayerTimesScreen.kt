@@ -86,6 +86,13 @@ fun PrayerTimesScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
+                        uiState.locationName?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                            )
+                        }
                         uiState.hijriDate?.let {
                             HijriDateText(hijriDate = it)
                         }
