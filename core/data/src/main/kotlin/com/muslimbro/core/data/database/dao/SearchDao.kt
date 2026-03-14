@@ -10,7 +10,6 @@ interface SearchDao {
         SELECT verses.* FROM verses
         INNER JOIN verses_fts ON verses.id = verses_fts.rowid
         WHERE verses_fts MATCH :query
-        ORDER BY bm25(verses_fts)
         LIMIT 50
     """)
     suspend fun searchVersesByArabic(query: String): List<VerseEntity>
@@ -22,7 +21,6 @@ interface SearchDao {
         INNER JOIN translation_fts ON translation_texts.id = translation_fts.rowid
         WHERE translation_fts MATCH :query
         AND translation_texts.edition = :edition
-        ORDER BY bm25(translation_fts)
         LIMIT 50
     """)
     suspend fun searchVersesByTranslation(query: String, edition: String): List<VerseEntity>

@@ -46,12 +46,22 @@ class PrayerTimesRepositoryImpl @Inject constructor(
                     emit(AppResult.Success(entity.toDomain()))
                 } else {
                     val calculated = calculatePrayerTimes(latitude, longitude, date, method, madhab)
-                    prayerTimesDao.insertPrayerTimes(calculated.toEntity())
                     emit(AppResult.Success(calculated))
+                    try {
+                        prayerTimesDao.insertPrayerTimes(calculated.toEntity())
+                    } catch (_: Exception) {
+                        // Cache write failure is non-fatal
+                    }
                 }
             }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e, "Failed to get prayer times"))
+        } catch (_: Exception) {
+            // DB unavailable — calculate directly without caching
+            try {
+                val calculated = calculatePrayerTimes(latitude, longitude, date, method, madhab)
+                emit(AppResult.Success(calculated))
+            } catch (e: Exception) {
+                emit(AppResult.Error(e, "Failed to calculate prayer times"))
+            }
         }
     }
 

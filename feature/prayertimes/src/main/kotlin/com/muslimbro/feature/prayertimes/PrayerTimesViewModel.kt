@@ -42,13 +42,11 @@ class PrayerTimesViewModel @Inject constructor(
     val uiState: StateFlow<PrayerTimesUiState> = _uiState.asStateFlow()
 
     private var countdownJob: Job? = null
-
-    init {
-        loadPrayerTimes()
-    }
+    private var loadJob: Job? = null
 
     fun loadPrayerTimes(date: LocalDate = LocalDate.now()) {
-        getPrayerTimesUseCase(date)
+        loadJob?.cancel()
+        loadJob = getPrayerTimesUseCase(date)
             .onEach { result ->
                 when (result) {
                     is AppResult.Loading -> _uiState.value = _uiState.value.copy(
@@ -114,6 +112,7 @@ class PrayerTimesViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        loadJob?.cancel()
         countdownJob?.cancel()
     }
 }

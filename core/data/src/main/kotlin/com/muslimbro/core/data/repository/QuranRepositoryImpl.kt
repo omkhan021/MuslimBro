@@ -19,6 +19,7 @@ import com.muslimbro.core.domain.model.Word
 import com.muslimbro.core.domain.repository.QuranRepository
 import com.muslimbro.core.network.AlQuranApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -32,13 +33,15 @@ class QuranRepositoryImpl @Inject constructor(
 ) : QuranRepository {
 
     override fun getSurahs(): Flow<AppResult<List<Surah>>> =
-        quranDao.getSurahs().map { entities ->
-            if (entities.isNotEmpty()) {
-                AppResult.Success(entities.map { it.toDomain() })
-            } else {
-                AppResult.Error(Exception("No surahs in database"), "Database may not be seeded")
+        quranDao.getSurahs()
+            .map { entities ->
+                if (entities.isNotEmpty()) {
+                    AppResult.Success(entities.map { it.toDomain() })
+                } else {
+                    AppResult.Error(Exception("No surahs in database"), "Database may not be seeded")
+                }
             }
-        }
+            .catch { e -> emit(AppResult.Error(e, "Failed to load surahs")) }
 
     override fun getSurah(number: Int): Flow<AppResult<Surah>> =
         quranDao.getSurah(number).map { entity ->

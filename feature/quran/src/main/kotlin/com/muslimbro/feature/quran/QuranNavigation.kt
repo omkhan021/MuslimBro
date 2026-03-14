@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.muslimbro.feature.quran.reader.QuranReaderScreen
+import com.muslimbro.feature.quran.search.SearchScreen
 import com.muslimbro.feature.quran.surahlist.SurahListScreen
 
 const val QURAN_ROUTE = "quran"
@@ -31,6 +32,14 @@ fun NavGraphBuilder.quranGraph(navController: NavHostController) {
             arguments = listOf(navArgument("surahNumber") { type = NavType.IntType })
         ) {
             QuranReaderScreen(onBack = { navController.popBackStack() })
+        }
+        composable(SEARCH_ROUTE) {
+            SearchScreen(
+                onBack = { navController.popBackStack() },
+                onVerseClick = { surahNumber ->
+                    navController.navigate("quran_reader/$surahNumber")
+                }
+            )
         }
     }
 }
