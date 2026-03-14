@@ -1,6 +1,7 @@
 package com.muslimbro.core.domain.model
 
 import com.batoulapps.adhan2.CalculationParameters
+import com.batoulapps.adhan2.PrayerAdjustments
 import com.muslimbro.core.domain.model.CalculationMethod.*
 import com.batoulapps.adhan2.Madhab as AdhanMadhab
 
@@ -25,12 +26,15 @@ fun CalculationMethod.toAdhanParameters(): CalculationParameters = when (this) {
         com.batoulapps.adhan2.CalculationMethod.QATAR.parameters
     SINGAPORE ->
         com.batoulapps.adhan2.CalculationMethod.SINGAPORE.parameters
-    ISNA ->
-        com.batoulapps.adhan2.CalculationMethod.NORTH_AMERICA.parameters
+    TEHRAN ->
+        CalculationParameters(
+            fajrAngle = 17.7,
+            ishaAngle = 14.0,
+            method = com.batoulapps.adhan2.CalculationMethod.OTHER,
+            methodAdjustments = PrayerAdjustments(dhuhr = 5, asr = 5, maghrib = 5)
+        )
     TURKEY ->
         com.batoulapps.adhan2.CalculationMethod.TURKEY.parameters
-
-    TEHRAN -> TODO()
 }
 
 fun Madhab.toAdhanMadhab(): AdhanMadhab = when (this) {

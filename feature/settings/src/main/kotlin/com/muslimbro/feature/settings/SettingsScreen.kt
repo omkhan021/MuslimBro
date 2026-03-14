@@ -4,23 +4,34 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -36,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.muslimbro.core.domain.model.CalculationMethod
 import com.muslimbro.core.domain.model.Madhab
+import com.muslimbro.core.domain.model.UserLocation
 import com.muslimbro.core.ui.components.LoadingScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +57,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showLocationDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -68,6 +81,16 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)
             ) {
+                item { SettingsSectionHeader("Location") }
+                item {
+                    SettingsCard {
+                        LocationSettingRow(
+                            currentLocation = uiState.savedLocation,
+                            onClick = { showLocationDialog = true }
+                        )
+                    }
+                }
+
                 item { SettingsSectionHeader("Prayer Calculation") }
                 item {
                     SettingsCard {
@@ -142,6 +165,143 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showLocationDialog) {
+        LocationSearchDialog(
+            uiState = uiState,
+            onQueryChange = viewModel::onLocationQueryChange,
+            onSearch = viewModel::searchLocation,
+            onSelectLocation = { location ->
+                viewModel.saveLocation(location)
+                showLocationDialog = false
+            },
+            onUseGps = {
+                viewModel.useGpsLocation()
+                showLocationDialog = false
+            },
+            onDismiss = { showLocationDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun LocationSearchDialog(
+    uiState: SettingsUiState,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onSelectLocation: (UserLocation) -> Unit,
+    onUseGps: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set Location") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = uiState.locationQuery,
+                    onValueChange = onQueryChange,
+                    placeholder = { Text("Search city or address…") },
+                    singleLine = true,
+                    trailingIcon = {
+                        if (uiState.locationQuery.isNotEmpty()) {
+                            IconButton(onClick = { onQueryChange("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(
+                    onClick = onSearch,
+                    enabled = uiState.locationQuery.isNotBlank() && !uiState.isSearchingLocation,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                    Spacer(Modifier.padding(horizontal = 4.dp))
+                    Text("Search")
+                }
+
+                if (uiState.isSearchingLocation) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                }
+
+                if (uiState.locationResults.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        uiState.locationResults.forEach { location ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectLocation(location) },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = location.cityName ?: "Unknown",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (uiState.locationResults.isEmpty() && !uiState.isSearchingLocation && uiState.locationQuery.isEmpty()) {
+                    HorizontalDivider()
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(
+                        onClick = onUseGps,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Use GPS / Device Location")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun LocationSettingRow(
+    currentLocation: UserLocation?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Location", style = MaterialTheme.typography.bodyMedium)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = currentLocation?.cityName ?: "Using GPS",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
         }
     }
 }

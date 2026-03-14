@@ -43,7 +43,11 @@ class SettingsDataStore @Inject constructor(
     val userSettings: Flow<UserSettings> = dataStore.data.map { prefs ->
         UserSettings(
             calculationMethod = prefs[CALCULATION_METHOD]
-                ?.let { runCatching { CalculationMethod.valueOf(it) }.getOrNull() }
+                ?.let { stored ->
+                    // "ISNA" was a duplicate of NORTH_AMERICA and has been removed
+                    if (stored == "ISNA") return@let CalculationMethod.NORTH_AMERICA
+                    runCatching { CalculationMethod.valueOf(stored) }.getOrNull()
+                }
                 ?: CalculationMethod.MUSLIM_WORLD_LEAGUE,
             madhab = prefs[MADHAB]
                 ?.let { runCatching { Madhab.valueOf(it) }.getOrNull() }

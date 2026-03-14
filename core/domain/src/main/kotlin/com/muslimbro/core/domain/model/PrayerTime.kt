@@ -58,7 +58,6 @@ enum class CalculationMethod {
     KUWAIT,
     QATAR,
     SINGAPORE,
-    ISNA,
     TEHRAN,
     TURKEY;
 
@@ -73,7 +72,6 @@ enum class CalculationMethod {
         KUWAIT -> "Kuwait"
         QATAR -> "Qatar"
         SINGAPORE -> "Majlis Ugama Islam Singapura"
-        ISNA -> "ISNA"
         TEHRAN -> "University of Tehran"
         TURKEY -> "Diyanet İşleri Başkanlığı"
     }

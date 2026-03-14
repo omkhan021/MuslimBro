@@ -53,7 +53,7 @@ class PrayerTimesViewModel @Inject constructor(
                 if (result is AppResult.Success) {
                     val loc = result.data
                     val name = loc.cityName
-                        ?: "%.4f°, %.4f°".format(loc.latitude, loc.longitude)
+                        ?: "%.2f°, %.2f°".format(loc.latitude, loc.longitude)
                     _uiState.value = _uiState.value.copy(locationName = name)
                 }
             }

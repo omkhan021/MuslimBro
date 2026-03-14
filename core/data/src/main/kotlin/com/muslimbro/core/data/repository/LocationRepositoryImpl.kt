@@ -2,6 +2,8 @@ package com.muslimbro.core.data.repository
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.location.Geocoder
+import android.os.Build
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.muslimbro.core.common.AppResult
@@ -9,10 +11,13 @@ import com.muslimbro.core.data.datastore.SettingsDataStore
 import com.muslimbro.core.domain.model.UserLocation
 import com.muslimbro.core.domain.repository.LocationRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -30,13 +35,12 @@ class LocationRepositoryImpl @Inject constructor(
     @SuppressLint("MissingPermission")
     override fun getCurrentLocation(): Flow<AppResult<UserLocation>> = flow {
         emit(AppResult.Loading)
-        // Check for saved manual location first
         settingsDataStore.savedLocation.collect { saved ->
             if (saved != null) {
                 emit(AppResult.Success(UserLocation(
                     latitude = saved.first,
                     longitude = saved.second,
-                    cityName = saved.third,
+                    cityName = saved.third.ifEmpty { null },
                     isManual = true
                 )))
                 return@collect
@@ -49,7 +53,6 @@ class LocationRepositoryImpl @Inject constructor(
                             if (loc != null) {
                                 continuation.resume(loc)
                             } else {
-                                // Try last known
                                 fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
                                     continuation.resume(lastLoc)
                                 }.addOnFailureListener {
@@ -60,9 +63,11 @@ class LocationRepositoryImpl @Inject constructor(
                         .addOnFailureListener { continuation.resume(null) }
                 }
                 if (location != null) {
+                    val displayName = reverseGeocode(location.latitude, location.longitude)
                     emit(AppResult.Success(UserLocation(
                         latitude = location.latitude,
-                        longitude = location.longitude
+                        longitude = location.longitude,
+                        cityName = displayName
                     )))
                 } else {
                     emit(AppResult.Error(Exception("Location unavailable"), "Could not get current location"))
@@ -79,7 +84,7 @@ class LocationRepositoryImpl @Inject constructor(
                 UserLocation(
                     latitude = it.first,
                     longitude = it.second,
-                    cityName = it.third,
+                    cityName = it.third.ifEmpty { null },
                     isManual = true
                 )
             }
@@ -95,5 +100,53 @@ class LocationRepositoryImpl @Inject constructor(
 
     override suspend fun clearManualLocation() {
         settingsDataStore.clearManualLocation()
+    }
+
+    override suspend fun geocodeLocation(query: String): List<UserLocation> {
+        if (!Geocoder.isPresent()) return emptyList()
+        return withContext(Dispatchers.IO) {
+            try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocationName(query.trim(), 5) ?: return@withContext emptyList()
+                addresses.mapNotNull { address ->
+                    if (!address.hasLatitude() || !address.hasLongitude()) return@mapNotNull null
+                    val parts = listOfNotNull(
+                        address.locality,
+                        address.adminArea,
+                        address.countryName
+                    ).distinct()
+                    val displayName = parts.joinToString(", ").ifEmpty { address.featureName ?: query }
+                    UserLocation(
+                        latitude = address.latitude,
+                        longitude = address.longitude,
+                        cityName = displayName,
+                        countryName = address.countryName
+                    )
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    private suspend fun reverseGeocode(lat: Double, lng: Double): String? {
+        if (!Geocoder.isPresent()) return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(lat, lng, 1) ?: return@withContext null
+                val address = addresses.firstOrNull() ?: return@withContext null
+                val parts = listOfNotNull(
+                    address.locality,
+                    address.adminArea,
+                    address.countryName
+                ).distinct()
+                parts.joinToString(", ").ifEmpty { null }
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 }
