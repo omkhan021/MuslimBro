@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mosque
@@ -30,6 +31,8 @@ import com.muslimbro.feature.qibla.QIBLA_ROUTE
 import com.muslimbro.feature.qibla.qiblaGraph
 import com.muslimbro.feature.quran.QURAN_ROUTE
 import com.muslimbro.feature.quran.quranGraph
+import com.muslimbro.feature.masnoon.MASNOON_ROUTE
+import com.muslimbro.feature.masnoon.masnoonGraph
 import com.muslimbro.feature.settings.SETTINGS_ROUTE
 import com.muslimbro.feature.settings.settingsGraph
 import dagger.hilt.android.AndroidEntryPoint
@@ -57,6 +60,7 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem("Prayer", Icons.Default.Mosque, PRAYER_TIMES_ROUTE),
     BottomNavItem("Quran", Icons.Default.Book, QURAN_ROUTE),
+    BottomNavItem("Du'as", Icons.Default.AutoStories, MASNOON_ROUTE),
     BottomNavItem("Qibla", Icons.Default.LocationOn, QIBLA_ROUTE),
     BottomNavItem("Settings", Icons.Default.Settings, SETTINGS_ROUTE)
 )
@@ -73,7 +77,9 @@ fun MuslimBroNavHost() {
                 bottomNavItems.forEach { item ->
                     val isSelected = currentRoute == item.route ||
                         (item.route == QURAN_ROUTE && currentRoute?.startsWith("surah") == true) ||
-                        (item.route == QURAN_ROUTE && currentRoute?.startsWith("quran") == true)
+                        (item.route == QURAN_ROUTE && currentRoute?.startsWith("quran") == true) ||
+                        (item.route == MASNOON_ROUTE && currentRoute?.startsWith("dua_detail") == true) ||
+                        (item.route == MASNOON_ROUTE && currentRoute?.startsWith("masnoon") == true)
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.label) },
                         label = { Text(item.label) },
@@ -99,6 +105,7 @@ fun MuslimBroNavHost() {
         ) {
             prayerTimesGraph()
             quranGraph(navController)
+            masnoonGraph(navController)
             qiblaGraph()
             settingsGraph()
         }

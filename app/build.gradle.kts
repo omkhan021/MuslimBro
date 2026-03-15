@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":feature:qibla"))
     implementation(project(":feature:widget"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:masnoon"))
 
     // App-level deps
     implementation(libs.core.ktx)
