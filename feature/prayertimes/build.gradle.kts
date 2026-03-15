@@ -9,6 +9,7 @@ android {
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":feature:alarms"))
     implementation(libs.play.services.location)
     implementation(libs.adhan)
     testImplementation(libs.junit)

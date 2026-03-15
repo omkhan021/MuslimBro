@@ -6,15 +6,19 @@ import com.muslimbro.core.common.AppResult
 import com.muslimbro.core.common.toHijriDate
 import com.muslimbro.core.domain.model.NextPrayer
 import com.muslimbro.core.domain.model.Prayer
+import com.muslimbro.core.domain.model.PrayerNotificationSettings
 import com.muslimbro.core.domain.model.PrayerTimes
 import com.muslimbro.core.domain.repository.LocationRepository
+import com.muslimbro.core.domain.repository.SettingsRepository
 import com.muslimbro.core.domain.usecase.GetPrayerTimesUseCase
+import com.muslimbro.feature.alarms.scheduler.PrayerAlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -38,7 +42,9 @@ data class PrayerTimesUiState(
 @HiltViewModel
 class PrayerTimesViewModel @Inject constructor(
     private val getPrayerTimesUseCase: GetPrayerTimesUseCase,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val settingsRepository: SettingsRepository,
+    private val alarmScheduler: PrayerAlarmScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PrayerTimesUiState())
@@ -58,6 +64,13 @@ class PrayerTimesViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+
+        // Load persisted per-prayer notification settings
+        viewModelScope.launch {
+            val settings = settingsRepository.getUserSettings().first()
+            val notifMap = settings.prayerNotifications.mapValues { it.value.enabled }
+            _uiState.value = _uiState.value.copy(notificationsEnabled = notifMap)
+        }
     }
 
     fun loadPrayerTimes(date: LocalDate = LocalDate.now()) {
@@ -77,6 +90,10 @@ class PrayerTimesViewModel @Inject constructor(
                             error = null
                         )
                         startCountdown(result.data)
+                        alarmScheduler.schedulePrayerAlarms(
+                            result.data,
+                            _uiState.value.notificationsEnabled
+                        )
                     }
                     is AppResult.Error -> _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -122,8 +139,20 @@ class PrayerTimesViewModel @Inject constructor(
 
     fun toggleNotification(prayer: Prayer) {
         val current = _uiState.value.notificationsEnabled.toMutableMap()
-        current[prayer] = !(current[prayer] ?: true)
+        val newEnabled = !(current[prayer] ?: true)
+        current[prayer] = newEnabled
         _uiState.value = _uiState.value.copy(notificationsEnabled = current)
+
+        viewModelScope.launch {
+            settingsRepository.updatePrayerNotification(
+                prayer,
+                PrayerNotificationSettings(enabled = newEnabled)
+            )
+            // Re-schedule alarms reflecting the new toggle state
+            _uiState.value.prayerTimes?.let { times ->
+                alarmScheduler.schedulePrayerAlarms(times, _uiState.value.notificationsEnabled)
+            }
+        }
     }
 
     override fun onCleared() {

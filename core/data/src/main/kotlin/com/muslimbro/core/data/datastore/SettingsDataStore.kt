@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.muslimbro.core.domain.model.CalculationMethod
 import com.muslimbro.core.domain.model.Madhab
+import com.muslimbro.core.domain.model.Prayer
+import com.muslimbro.core.domain.model.PrayerNotificationSettings
 import com.muslimbro.core.domain.model.UserSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +40,9 @@ class SettingsDataStore @Inject constructor(
         val SAVED_CITY = stringPreferencesKey("saved_city")
         val USE_MANUAL_LOCATION = booleanPreferencesKey("use_manual_location")
         val FONT_SIZE_QURAN = intPreferencesKey("font_size_quran")
+
+        fun prayerNotifEnabledKey(prayer: Prayer) =
+            booleanPreferencesKey("notif_enabled_${prayer.name}")
     }
 
     val userSettings: Flow<UserSettings> = dataStore.data.map { prefs ->
@@ -60,7 +65,14 @@ class SettingsDataStore @Inject constructor(
             },
             defaultTranslationEdition = prefs[DEFAULT_TRANSLATION] ?: "en.asad",
             defaultReciterId = prefs[DEFAULT_RECITER_ID] ?: 1,
-            notificationsEnabled = prefs[NOTIFICATIONS_ENABLED] ?: true
+            notificationsEnabled = prefs[NOTIFICATIONS_ENABLED] ?: true,
+            prayerNotifications = Prayer.entries
+                .filter { it.isAlarmable }
+                .associateWith { prayer ->
+                    PrayerNotificationSettings(
+                        enabled = prefs[prayerNotifEnabledKey(prayer)] ?: true
+                    )
+                }
         )
     }
 
@@ -117,5 +129,9 @@ class SettingsDataStore @Inject constructor(
             it.remove(SAVED_CITY)
             it[USE_MANUAL_LOCATION] = false
         }
+    }
+
+    suspend fun updatePrayerNotificationEnabled(prayer: Prayer, enabled: Boolean) {
+        dataStore.edit { it[prayerNotifEnabledKey(prayer)] = enabled }
     }
 }

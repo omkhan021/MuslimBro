@@ -26,7 +26,6 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updatePrayerNotification(prayer: Prayer, settings: PrayerNotificationSettings) {
-        // Per-prayer notification settings stored in DataStore
-        // In a full implementation, each prayer would have its own keys
+        settingsDataStore.updatePrayerNotificationEnabled(prayer, settings.enabled)
     }
 }

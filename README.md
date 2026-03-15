@@ -6,13 +6,14 @@ A comprehensive Islamic companion app for Android, built with modern Android dev
 
 ## Features
 
-- **Prayer Times** — Accurate calculation using the Adhan library with support for 13 calculation methods (MWL, Egyptian, Karachi, Umm al-Qura, etc.) and Hanafi/Shafi'i Madhabs. Per-prayer notification toggles and a live next-prayer countdown.
+- **Prayer Times** — Accurate calculation using the Adhan library with support for 12 calculation methods (MWL, Egyptian, Karachi, Umm al-Qura, etc.) and Hanafi/Shafi'i Madhabs. Per-prayer notification toggles (persisted to DataStore) and a live next-prayer countdown.
 - **Quran Reader** — Browse all 114 Surahs, read Uthmani script with translations, and search across the full text.
 - **Quran Audio Player** — Stream recitations via a Media3/ExoPlayer-backed foreground service with word-level highlighting.
 - **Qibla Direction** — Compass-based Qibla finder using device sensors and GPS location.
-- **Prayer Alarms** — Exact alarms using `USE_EXACT_ALARM` with Adhan audio playback (Fajr and regular).
+- **Masnoon Du'as** — Curated collection of 14 categories of prophetic supplications (Morning, Evening, Eating, Sleep, Travel, and more), each with Arabic text, transliteration, translation, and Hadith reference.
+- **Prayer Alarms** — Exact alarms using `USE_EXACT_ALARM` with Adhan audio playback (Fajr and regular). Alarms are automatically rescheduled on boot via WorkManager and update immediately when notification toggles change.
 - **Home Screen Widgets** — Two Glance-powered widgets (2×1 small, 4×2 medium) showing upcoming prayer times, auto-refreshed via WorkManager.
-- **Settings** — Calculation method, Madhab, location mode (GPS / manual), and notification preferences all persisted with DataStore.
+- **Settings** — Calculation method, Madhab, location mode (GPS / manual), and per-prayer notification preferences all persisted with DataStore.
 
 ---
 
@@ -68,6 +69,7 @@ MuslimBro/
 │   └── ui/                     # Shared Compose theme, components, fonts
 └── feature/
     ├── alarms/                 # Alarm scheduling, BroadcastReceivers, foreground service
+    ├── masnoon/                # Masnoon Du'as category list + detail screens
     ├── prayertimes/            # Prayer times screen + ViewModel
     ├── qibla/                  # Qibla compass screen + ViewModel
     ├── quran/                  # Surah list + Quran reader screens
