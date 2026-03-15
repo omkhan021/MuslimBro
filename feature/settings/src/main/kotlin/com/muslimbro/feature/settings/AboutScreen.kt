@@ -18,12 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Mosque
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,7 +35,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -160,15 +160,15 @@ fun AboutScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.height(12.dp))
-                        FeatureRow(Icons.Default.Mosque,      "Prayer Times",   "Accurate daily prayer times based on your location with adhan notifications")
+                        FeatureRow(painterResource(com.muslimbro.core.ui.R.drawable.ic_prayers), "Prayer Times",  "Accurate daily prayer times based on your location with adhan notifications")
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        FeatureRow(Icons.Default.Book,         "Quran",          "Full Quran with Arabic text and easy navigation by Surah")
+                        FeatureRow(painterResource(com.muslimbro.core.ui.R.drawable.ic_quran),   "Quran",         "Full Quran with Arabic text and easy navigation by Surah")
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        FeatureRow(Icons.Default.Star,         "Masnoon Du'as",  "Collection of authentic supplications from the Sunnah")
+                        FeatureRow(painterResource(com.muslimbro.core.ui.R.drawable.ic_duas),    "Masnoon Du'as", "Collection of authentic supplications from the Sunnah")
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        FeatureRow(Icons.Default.LocationOn,   "Qibla Finder",   "Compass-based Qibla direction from anywhere in the world")
+                        FeatureRow(painterResource(com.muslimbro.core.ui.R.drawable.ic_qibla),   "Qibla Finder",  "Compass-based Qibla direction from anywhere in the world")
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        FeatureRow(Icons.Default.Notifications,"Adhan Alerts",   "Customisable notifications for each prayer with per-prayer control")
+                        FeatureRow(rememberVectorPainter(Icons.Default.Notifications),            "Adhan Alerts",  "Customisable notifications for each prayer with per-prayer control")
                     }
                 }
 
@@ -254,23 +254,24 @@ fun AboutScreen(
 }
 
 @Composable
-private fun FeatureRow(icon: ImageVector, title: String, description: String) {
+private fun FeatureRow(icon: Painter, title: String, description: String) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .width(56.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .padding(6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
+            Image(
+                painter = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(20.dp)
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.width(44.dp)
             )
         }
         Column {
