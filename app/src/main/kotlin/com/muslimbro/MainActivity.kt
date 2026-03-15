@@ -115,7 +115,7 @@ fun MuslimBroNavHost() {
             quranGraph(navController)
             masnoonGraph(navController)
             qiblaGraph()
-            settingsGraph()
+            settingsGraph(navController)
         }
     }
 }
