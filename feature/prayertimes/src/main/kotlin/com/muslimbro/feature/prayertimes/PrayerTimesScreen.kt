@@ -220,7 +220,9 @@ private fun NextPrayerBanner(
             CountdownTimer(
                 remainingSeconds = nextPrayer.remainingSeconds,
                 label = "Time remaining",
-                modifier = Modifier
+                modifier = Modifier,
+                textColor = MaterialTheme.colorScheme.onPrimary,
+                labelColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
             )
         }
     }

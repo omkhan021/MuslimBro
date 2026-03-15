@@ -155,16 +155,15 @@ fun PrayerTimeCard(
 fun CountdownTimer(
     remainingSeconds: Long,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
+    labelColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 ) {
-    val hours = remainingSeconds / 3600
-    val minutes = (remainingSeconds % 3600) / 60
-    val seconds = remainingSeconds % 60
-    val formatted = if (hours > 0) {
-        String.format("%02d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format("%02d:%02d", minutes, seconds)
-    }
+    val total = remainingSeconds.coerceAtLeast(0L)
+    val hours = total / 3600
+    val minutes = (total % 3600) / 60
+    val seconds = total % 60
+    val formatted = String.format("%02d : %02d : %02d", hours, minutes, seconds)
 
     Column(
         modifier = modifier,
@@ -173,13 +172,13 @@ fun CountdownTimer(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            color = labelColor
         )
         Text(
             text = formatted,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = textColor
         )
     }
 }

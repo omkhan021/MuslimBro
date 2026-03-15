@@ -131,7 +131,9 @@ class PrayerTimesViewModel @Inject constructor(
             val remaining = if (time.isAfter(now)) {
                 ChronoUnit.SECONDS.between(now, time)
             } else {
-                ChronoUnit.SECONDS.between(now, time.plusHours(24))
+                // Next day's prayer — LocalTime has no date so plusHours(24) is a no-op;
+                // instead add 86400 seconds to the (negative) difference.
+                ChronoUnit.SECONDS.between(now, time) + 86400L
             }
             NextPrayer(prayer, time, remaining)
         }
