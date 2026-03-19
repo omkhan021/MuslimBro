@@ -19,7 +19,8 @@ data class PlayerUiState(
     val currentSurah: Int = 0,
     val currentVerse: Int = 0,
     val currentWordIndex: Int = -1,
-    val reciterIdentifier: String = "Alafasy_128kbps"
+    val reciterIdentifier: String = "Alafasy_128kbps",
+    val verseWordCounts: Map<Int, Int> = emptyMap()
 )
 
 @HiltViewModel
@@ -55,18 +56,31 @@ class QuranPlayerViewModel @Inject constructor(
         })
     }
 
-    fun playSurah(surahNumber: Int, startVerse: Int = 1, versesCount: Int) {
+    fun playSurah(
+        surahNumber: Int,
+        startVerse: Int = 1,
+        versesCount: Int,
+        verseWordCounts: Map<Int, Int> = emptyMap()
+    ) {
         val reciter = _uiState.value.reciterIdentifier
         val items = (startVerse..versesCount).map { verse ->
             QuranPlayerService.buildMediaItem(reciter, surahNumber, verse)
         }
+        _uiState.value = _uiState.value.copy(verseWordCounts = verseWordCounts)
         exoPlayer.setMediaItems(items)
         exoPlayer.prepare()
         exoPlayer.play()
     }
 
     fun playPause() {
-        if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
+        if (exoPlayer.isPlaying) {
+            exoPlayer.pause()
+        } else {
+            if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                exoPlayer.seekTo(0, 0)
+            }
+            exoPlayer.play()
+        }
     }
 
     fun skipNext() {
@@ -86,11 +100,20 @@ class QuranPlayerViewModel @Inject constructor(
         wordHighlightJob = viewModelScope.launch {
             while (exoPlayer.isPlaying) {
                 val position = exoPlayer.currentPosition
-                // Word timing would come from the words table audio_offset
-                // For now, emit position-based index estimation
-                _uiState.value = _uiState.value.copy(
-                    currentWordIndex = (position / 300).toInt() // rough 300ms per word
-                )
+                val duration = exoPlayer.duration
+
+                val currentVerse = _uiState.value.currentVerse
+                val wordCount = _uiState.value.verseWordCounts[currentVerse] ?: 0
+
+                val wordIndex = if (duration > 0 && wordCount > 0) {
+                    // Spread words evenly across the actual verse duration
+                    val msPerWord = duration.toFloat() / wordCount
+                    (position / msPerWord).toInt().coerceIn(0, wordCount - 1)
+                } else {
+                    -1
+                }
+
+                _uiState.value = _uiState.value.copy(currentWordIndex = wordIndex)
                 delay(50)
             }
         }

@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -45,16 +49,42 @@ import com.muslimbro.core.ui.components.ErrorScreen
 import com.muslimbro.core.ui.components.LoadingScreen
 import com.muslimbro.core.ui.theme.Gold500
 import com.muslimbro.core.ui.theme.QuranFontFamily
+import com.muslimbro.feature.quranplayer.QuranPlayerBar
+import com.muslimbro.feature.quranplayer.QuranPlayerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuranReaderScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: QuranReaderViewModel = hiltViewModel()
+    viewModel: QuranReaderViewModel = hiltViewModel(),
+    playerViewModel: QuranPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val playerState by playerViewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState()
+
+    val surahNum = uiState.surah?.number ?: 0
+    val isThisSurahPlaying = playerState.currentSurah == surahNum && surahNum != 0
+
+    // Map of verseNumber -> word count, built once verses are loaded
+    val verseWordCounts = uiState.verses.associate { verse ->
+        verse.verseNumber to verse.textUthmani.trim().split(" ").size
+    }
+
+    // Word index from the player — only applied to the verse currently being recited
+    val activeWordIndex = if (isThisSurahPlaying) playerState.currentWordIndex else -1
+
+    val listState = rememberLazyListState()
+
+    // Auto-scroll to the currently playing verse
+    LaunchedEffect(playerState.currentVerse) {
+        if (isThisSurahPlaying && playerState.currentVerse > 0) {
+            val bismillahOffset = if (surahNum != 1 && surahNum != 9) 1 else 0
+            val scrollIndex = (playerState.currentVerse - 1) + bismillahOffset
+            listState.animateScrollToItem(scrollIndex)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -81,7 +111,28 @@ fun QuranReaderScreen(
                     }
                 },
                 actions = {
+                    // Play / Pause button
                     uiState.surah?.let { surah ->
+                        IconButton(onClick = {
+                            if (isThisSurahPlaying) {
+                                playerViewModel.playPause()
+                            } else {
+                                playerViewModel.playSurah(
+                                    surahNumber = surah.number,
+                                    startVerse = 1,
+                                    versesCount = uiState.verses.size,
+                                    verseWordCounts = verseWordCounts
+                                )
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isThisSurahPlaying && playerState.isPlaying)
+                                    Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isThisSurahPlaying && playerState.isPlaying)
+                                    "Pause" else "Play",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                         Text(
                             text = surah.nameArabic,
                             style = MaterialTheme.typography.titleMedium,
@@ -97,6 +148,9 @@ fun QuranReaderScreen(
                 )
             )
         },
+        bottomBar = {
+            QuranPlayerBar(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        },
         modifier = modifier
     ) { paddingValues ->
         when {
@@ -107,6 +161,7 @@ fun QuranReaderScreen(
             )
             else -> {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .padding(paddingValues)
                         .fillMaxSize(),
@@ -114,7 +169,6 @@ fun QuranReaderScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     // Bismillah header (except Al-Fatiha and At-Tawbah)
-                    val surahNum = uiState.surah?.number ?: 0
                     if (surahNum != 1 && surahNum != 9) {
                         item {
                             Text(
@@ -136,11 +190,25 @@ fun QuranReaderScreen(
                     items(uiState.verses) { verse ->
                         val translation = uiState.translations
                             .firstOrNull { it.verseNumber == verse.verseNumber }
+                        // Only highlight words in the verse that is actively being recited
+                        val verseWordIndex = if (isThisSurahPlaying &&
+                            verse.verseNumber == playerState.currentVerse)
+                            activeWordIndex else -1
                         VerseCard(
                             verse = verse,
                             translation = translation,
-                            highlightedWordIndex = uiState.highlightedWordIndex,
-                            onLongPress = { viewModel.selectVerseForSheet(verse) }
+                            highlightedWordIndex = verseWordIndex,
+                            onLongPress = { viewModel.selectVerseForSheet(verse) },
+                            onPlayFromHere = {
+                                uiState.surah?.let { surah ->
+                                    playerViewModel.playSurah(
+                                        surahNumber = surah.number,
+                                        startVerse = verse.verseNumber,
+                                        versesCount = uiState.verses.size,
+                                        verseWordCounts = verseWordCounts
+                                    )
+                                }
+                            }
                         )
                     }
                 }
@@ -155,6 +223,17 @@ fun QuranReaderScreen(
                         VerseActionsSheet(
                             verse = verse,
                             onBookmark = { viewModel.bookmarkVerse(verse) },
+                            onPlayFromHere = {
+                                uiState.surah?.let { surah ->
+                                    playerViewModel.playSurah(
+                                        surahNumber = surah.number,
+                                        startVerse = verse.verseNumber,
+                                        versesCount = uiState.verses.size,
+                                        verseWordCounts = verseWordCounts
+                                    )
+                                }
+                                viewModel.selectVerseForSheet(null)
+                            },
                             onDismiss = { viewModel.selectVerseForSheet(null) }
                         )
                     }
@@ -169,7 +248,8 @@ private fun VerseCard(
     verse: Verse,
     translation: Translation?,
     highlightedWordIndex: Int,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    onPlayFromHere: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -237,6 +317,7 @@ private fun VerseCard(
 private fun VerseActionsSheet(
     verse: Verse,
     onBookmark: () -> Unit,
+    onPlayFromHere: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -254,6 +335,12 @@ private fun VerseActionsSheet(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Bookmark")
+        }
+        TextButton(
+            onClick = onPlayFromHere,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Play from this verse")
         }
         TextButton(
             onClick = onDismiss,
